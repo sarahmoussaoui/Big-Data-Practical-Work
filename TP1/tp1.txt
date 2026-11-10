@@ -1,0 +1,369 @@
+************ Exploration de la base « movies » ************ 
+
+1- cette base comporte 171 nodes
+
+2- noeuds movies et noeuds person
+
+3- Il existe 6 relations. Les relations entre les noeuds sont de type "acted_in" et "directed", "follows", "produced"
+"reviewed" et "wrote"
+entre types de noeuds:
+- "acted_in" relie les noeuds person aux noeuds movies
+- "directed" relie les noeuds person aux noeuds movies
+- "follows" relie les noeuds person aux noeuds person
+- "produced" relie les noeuds person aux noeuds movies
+- "reviewed" relie les noeuds person aux noeuds movies
+- "wrote" relie les noeuds person aux noeuds movies
+
+4- Il existe 20 propriétes. 
+propriete born opere sur les entites de types noeuds: 
+  MATCH (n) 
+  WHERE n.born IS NOT NULL
+  RETURN DISTINCT "node" as entity, n.born AS born LIMIT 25
+  UNION ALL 
+  MATCH ()-[r]-() 
+  WHERE r.born IS NOT NULL
+  RETURN DISTINCT "relationship" AS entity, r.born AS born LIMIT 25;
+
+propriete name opere sur nodes:
+  MATCH (n) 
+  WHERE n.name IS NOT NULL
+  RETURN DISTINCT "node" as entity, n.name AS name LIMIT 25
+  UNION ALL 
+  MATCH ()-[r]-() 
+  WHERE r.name IS NOT NULL
+  RETURN DISTINCT "relationship" AS entity, r.name AS name LIMIT 25;
+
+propriete released opere sur nodes
+  MATCH (n) 
+  WHERE n.released IS NOT NULL
+  RETURN DISTINCT "node" as entity, n.released AS released LIMIT 25
+  UNION ALL 
+  MATCH ()-[r]-() 
+  WHERE r.released IS NOT NULL
+  RETURN DISTINCT "relationship" AS entity, r.released AS released LIMIT 25;
+
+
+propriete votes opere sur links:
+  MATCH (n) 
+  WHERE n.votes IS NOT NULL
+  RETURN DISTINCT "node" as entity, n.votes AS votes LIMIT 25
+  UNION ALL 
+  MATCH ()-[r]-() 
+  WHERE r.votes IS NOT NULL
+  RETURN DISTINCT "relationship" AS entity, r.votes AS votes LIMIT 25;
+
+propriete roles opere sur links
+  MATCH (n) 
+  WHERE n.roles IS NOT NULL
+  RETURN DISTINCT "node" as entity, n.roles AS roles LIMIT 25
+  UNION ALL 
+  MATCH ()-[r]-() 
+  WHERE r.roles IS NOT NULL
+  RETURN DISTINCT "relationship" AS entity, r.roles AS roles LIMIT 25;
+
+
+propriete summary opere sur links:
+  MATCH (n) 
+  WHERE n.summary IS NOT NULL
+  RETURN DISTINCT "node" as entity, n.summary AS summary LIMIT 25
+  UNION ALL 
+  MATCH ()-[r]-() 
+  WHERE r.summary IS NOT NULL
+  RETURN DISTINCT "relationship" AS entity, r.summary AS summary LIMIT 25;
+
+Cela semble logique.
+
+5- voir image
+
+
+************ Requêtes sur la base « movies » ************ 
+
+1. Nombre total de nœuds dans le graphe de la base de données ‘Movies’.
+MATCH (n) RETURN COUNT(n) as nbr_nodes;
+171
+
+2. Nombre total de films dans le graphe de la base de données ‘Movies’.
+MATCH (n:Movie) RETURN COUNT(n) as nbr_movies;
+38
+
+3. Liste des titres de films dans la base « movies ».
+MATCH (n:Movie) RETURN n.title;
+
+4. Toutes les propriétés du nœud « Person » dont la propriété « name » est « Jack Nicholson » ?
+MATCH (n:Person)  WHERE n.name= "Jack Nicholson" RETURN PROPERTIES(n);
+MATCH (p:Person {name: 'Jack Nicholson'}) RETURN properties(p);
+{
+  born: 1937,
+  name: "Jack Nicholson"
+}
+
+5. Quels types de relations ont la propriété « summary » ?
+MATCH ()-[r]->()
+WHERE r.summary IS NOT NULL
+RETURN DISTINCT type(r) AS type_relation;
+"REVIEWED"
+
+6. Pour chaque relation pour laquelle la propriété « summary » est remplie : donnez le nom de la
+personne ayant « reviewé » le film, le titre du film, le contenu de « summary », et la note (‘rating’)
+donnée par cette personne dans sa review.
+MATCH (p:Person)-[r]->(m:Movie)
+WHERE r.summary IS NOT NULL
+RETURN p.name AS person_name, m.title as movie_title, r.summary as summary, r.rating as rating;
+
+7. Donnez tous les « summary » du film « "The Da Vinci Code" ».
+MATCH (p:Person)-[r]->(m:Movie)  OU BIEN  MATCH (p)-[r]->(m)
+WHERE r.summary IS NOT NULL 
+AND m.title = 'The Da Vinci Code'
+RETURN r.summary;
+"A solid romp"
+"Fun, but a little far fetched"
+
+
+8. Tous les titres de films ‘reviewed’ par l’utilisateur ‘Jessica Thompson’, avec le ‘rating’ et le
+summary associé, ordonné par ‘rating’ décroissant (le ‘rating’ sera nommé ‘note’).
+MATCH (p)-[:REVIEWED]->(m:Movie) 
+WHERE p.name ='Jessica Thompson' 
+RETURN m.title, REVIEWED.rating as note, REVIEWED.summary 
+ORDER BY note DESC ;
+
+
+9. Tous les titres de films qui ne sont pas ‘reviewed’ par l’utilisateur ‘Jessica Thompson’. Indice :
+regarder la page https://neo4j.com/docs/cyphermanual/current/clauses/where/#filter-on-
+patterns-using-not
+MATCH (m:Movie)
+WHERE NOT EXISTS {
+    MATCH (p:Person {name: 'Jessica Thompson'})-[:REVIEWED]->(m)
+}
+RETURN m.title;
+
+10. Les titres et dates de sortie des films dont le titre contient ‘Matrix’ (quelle que soit la casse :
+majuscules ). Indice : regarder la page https://neo4j.com/docs/cypher-
+manual/current/clauses/where/#matchstring-contains
+MATCH (m:Movie)
+WHERE toLower(m.title) CONTAINS 'matrix'
+RETURN m.title, m.released;
+
+11. Les titres des films dont le titre commence par ‘The Matrix Re’, sans tenir compte de la casse.
+Indice : regarder la page https://neo4j.com/docs/cypher-manual/current/clauses/where/#matchingusing-regular-expressions
+MATCH (m:Movie)
+WHERE toLower(m.title) STARTS WITH 'the matrix re'
+RETURN m.title;
+
+12. Les titres de films qui sont notés par l’utilisateur ‘Jessica Thompson’ (dans l’ordre alphabétique du
+titre du film) et la liste des acteurs du film. Même si le film n’a aucun acteur, on veut quand même
+afficher son titre. Indice : regarder la page https://neo4j.com/docs/cypher-
+manual/current/functions/aggregating/#functions-collect
+
+MATCH (p)-[:REVIEWED]->(m:Movie)
+WHERE p.name = 'Jessica Thompson'
+OPTIONAL MATCH (a)-[:ACTED_IN]->(m)
+RETURN m.title AS title, collect(a.name) AS actors
+ORDER BY title;
+
+13. Le nombre de films par acteur, par ordre décroissant de nombre de films joués. Indice : regarder la page https://neo4j.com/docs/cyphermanual/current/subqueries/count/
+MATCH (p)-[:ACTED_IN]->(m:Movie)
+RETURN p.name, COUNT(m) as number_movies ORDER BY number_movies DESC;
+
+
+
+************ Création et manipulations d’une nouvelle base ************
+Username: c1d85036
+password: ZKJinNrZzcnNstJxD0yMO8bUCZFcvE-KLGgibeNw8lc
+
+1- *****
+CREATE
+// 1. Départements
+(math:Department {name: 'Mathématiques'}),
+(info:Department {name: 'Informatique'}),
+
+// 2. Professeurs
+(claire:Professor {name: 'Claire Martin'}),
+(paul:Professor {name: 'Paul Durand'}),
+(sophie:Professor {name: 'Sophie Leroy'}),
+
+// 3. Cours
+(c1:Course {code: 'INFO101', title: 'Programmation', credits: 6}),
+(c2:Course {code: 'INFO202', title: 'Bases de données', credits: 5}),
+(c3:Course {code: 'MATH101', title: 'Algèbre', credits: 4}),
+(c4:Course {code: 'MATH202', title: 'Analyse', credits: 5}),
+
+// 4. Salles
+(r1:Room {name: 'Salle A101', capacity: 30}),
+(r2:Room {name: 'Salle B202', capacity: 50}),
+
+// 5. Étudiants
+(s1:Student {name: 'Emma', year: 1}),
+(s2:Student {name: 'Lucas', year: 2}),
+(s3:Student {name: 'Adam', year: 3});
+
+****
+MATCH
+(math:Department {name: 'Mathématiques'}),
+(info:Department {name: 'Informatique'}),
+
+(claire:Professor {name: 'Claire Martin'}),
+(paul:Professor {name: 'Paul Durand'}),
+(sophie:Professor {name: 'Sophie Leroy'}),
+
+(c1:Course {code: 'INFO101'}),
+(c2:Course {code: 'INFO202'}),
+(c3:Course {code: 'MATH101'}),
+(c4:Course {code: 'MATH202'}),
+
+(r1:Room {name: 'Salle A101'}),
+(r2:Room {name: 'Salle B202'}),
+
+(s1:Student {name: 'Emma'}),
+(s2:Student {name: 'Lucas'}),
+(s3:Student {name: 'Adam'})
+
+// Student -> Department
+CREATE
+(s1)-[:MEMBER_OF]->(info),
+(s2)-[:MEMBER_OF]->(math),
+(s3)-[:MEMBER_OF]->(info),
+
+// Student -> Student
+(s1)-[:FRIEND_OF]->(s2),
+(s2)-[:FRIEND_OF]->(s3),
+
+// Student -> Course
+(s1)-[:ENROLLED_IN {grade: 15, year: 2026}]->(c1),
+(s1)-[:ENROLLED_IN {grade: 14, year: 2026}]->(c2),
+(s2)-[:ENROLLED_IN {grade: 13, year: 2026}]->(c3),
+(s3)-[:ENROLLED_IN {grade: 16, year: 2026}]->(c4),
+
+// Professor -> Course
+(claire)-[:TEACHES]->(c1),
+(claire)-[:TEACHES]->(c2),
+(paul)-[:TEACHES]->(c3),
+(sophie)-[:TEACHES]->(c4),
+
+// Professor -> Department
+(claire)-[:WORKS_IN]->(info),
+(paul)-[:WORKS_IN]->(math),
+(sophie)-[:WORKS_IN]->(math),
+
+// Professor -> Department (Head)
+(claire)-[:HEADS]->(info),
+(paul)-[:HEADS]->(math),
+
+// Course -> Department
+(c1)-[:OFFERED_BY]->(info),
+(c2)-[:OFFERED_BY]->(info),
+(c3)-[:OFFERED_BY]->(math),
+(c4)-[:OFFERED_BY]->(math),
+
+// Course -> Course
+(c1)-[:PREREQUISITE_OF]->(c2),
+(c3)-[:PREREQUISITE_OF]->(c4),
+
+// Course -> Room
+(c1)-[:HELD_IN]->(r1),
+(c2)-[:HELD_IN]->(r2),
+(c3)-[:HELD_IN]->(r1),
+(c4)-[:HELD_IN]->(r2);
+
+2- CALL db.schema.visualization(); (see image)
+
+3. Rajoutez un attribut DOB (date of birth) aux étudiants déjà créés.
+MATCH (s:Student {name: 'Emma'})
+SET s.DOB = date('2004-05-15');
+
+MATCH (s:Student {name: 'Lucas'})
+SET s.DOB = date('2003-08-20');
+
+MATCH (s:Student {name: 'Adam'})
+SET s.DOB = date('2002-11-10');
+
+4. Recherchez le professeur Paul Durand et rajoutez-lui la DOB du 01/01/1980.
+MATCH (p:Professor {name: 'Paul Durand'})
+SET p.DOB = date('1980-01-01')
+RETURN p;
+
+5. Créez un autre département ‘Biologie‘, et rajoutez une relation CO_HEADS entre Paul
+Durand et ce nouveau département. Pour éviter de créer deux départements Biologie si
+on relance la requête, utilisez MERGE au lieu de CREATE.
+MERGE (d:Department {name: 'Biologie'})
+WITH d
+MATCH (p:Professor {name: 'Paul Durand'})
+MERGE (p)-[:CO_HEADS]->(d)
+RETURN p, d;
+
+6. Ecrire et exécuter la requête permettant de calculer le nombre de cours suivis par
+étudiant, et ajouter un attribut courseCount aux étudiants. Vérifier la mise à jour en
+affichant tous les étudiants et leurs propriétés.
+MATCH (s:Student)
+OPTIONAL MATCH (s)-[:ENROLLED_IN]->(c:Course)
+WITH s, COUNT(c) AS courseCount
+SET s.courseCount = courseCount
+RETURN s.name, s.courseCount;
+
+verification:
+MATCH (s:Student)
+RETURN s, properties(s);
+
+7. Selon vous, quel est le choix de base de données le plus pertinent (base de données
+relationnelle ou Neo4J) :
+  § pour la gestion courante d’une université (inscriptions, affectation des cours aux
+  professeurs…) ?
+  relationnelle
+  § pour l’analyse du graphe : analyse des prérequis de cours, analyse des réseaux
+  d’amis d’étudiants
+  Neo4J
+
+8. Question bonus : trouver cinq questions qui nécessitent des requêtes assez complexes, et
+soumettez-les à vos voisins.
+
+Question 1 — Amis et cours 
+Quels étudiants sont amis et suivent au moins un cours en commun ? Afficher leurs noms et les cours partagés.
+
+MATCH (s1:Student)-[:FRIEND_OF]-(s2:Student)
+MATCH (s1)-[:ENROLLED_IN]->(c:Course)<-[:ENROLLED_IN]-(s2)
+WHERE s1.name < s2.name
+RETURN s1.name, s2.name, collect(DISTINCT c.title) AS commonCourses;
+
+add to have results:
+MATCH (s:Student {name: 'Lucas'}),
+      (c:Course {code: 'INFO101'})
+MERGE (s)-[:ENROLLED_IN {grade: 14, year: 2026}]->(c);
+
+Question 2 — Prérequis
+Quels sont les étudiants inscrits à un cours alors qu'ils ne sont inscrits à aucun de ses cours prérequis ?
+MATCH (s:Student)-[:ENROLLED_IN]->(c:Course)
+MATCH (prereq:Course)-[:PREREQUISITE_OF]->(c)
+WHERE NOT EXISTS {
+    MATCH (s)-[:ENROLLED_IN]->(prereq)
+}
+RETURN s.name AS student,
+       c.title AS course,
+       prereq.title AS missingPrerequisite;
+
+Question 3 — Professeurs et départements
+Quels professeurs enseignent des cours proposés par un département différent de celui dans lequel ils travaillent ?
+MATCH (p:Professor)-[:WORKS_IN]->(d:Department)
+MATCH (p)-[:TEACHES]->(c:Course)-[:OFFERED_BY]->(other:Department)
+WHERE d <> other
+RETURN p.name AS professor,
+       d.name AS worksIn,
+       c.title AS course,
+       other.name AS offeredBy;
+
+
+Question 4 — Réseau d'amitié
+Quels étudiants sont indirectement connectés à Emma par l'intermédiaire de deux ou trois relations FRIEND_OF ?
+MATCH path =
+    (e:Student {name: 'Emma'})-[:FRIEND_OF*2..3]->(s:Student)
+RETURN s.name AS connectedStudent,
+       length(path) AS friendshipDistance;
+
+Question 5 — Analyse des départements
+Quel département possède le plus d'étudiants inscrits à ses cours ? Afficher le département, le nombre d'étudiants distincts et les cours concernés.
+MATCH (d:Department)<-[:OFFERED_BY]-(c:Course)
+      <-[:ENROLLED_IN]-(s:Student)
+
+RETURN d.name AS department,
+       COUNT(DISTINCT s) AS studentCount,
+       COLLECT(DISTINCT c.title) AS courses
+ORDER BY studentCount DESC
+LIMIT 1;
